@@ -6,8 +6,9 @@ const debugParams = debuglog('intcode:params')
 type Memory = Array<number>
 export const parse = (str: string): Memory => str.split(',').map(Number)
 
-export function intcode(m: Memory, register?: number) {
-  debug('intcode(%o, %o)', m, register)
+export function intcode(m: Memory, inputs: number[] = []) {
+  let output
+  debug('intcode(%o, %o)', m, inputs)
   const memory = [...m]
 
   let instructionPointer = 0
@@ -56,7 +57,7 @@ export function intcode(m: Memory, register?: number) {
       }
     }
 
-    debug('opCode', memory[instructionPointer], register, memory)
+    debug('opCode', memory[instructionPointer], output, memory)
     switch (opCode) {
       case 1: { // add
         const left = paramValue(1)
@@ -79,18 +80,19 @@ export function intcode(m: Memory, register?: number) {
       }
       case 3: { // Set
         const destAddress = memory[instructionPointer + 1]
-        if (register == null) {
-          throw new Error('Set called with an empty register')
+        const value = inputs.shift()
+        if (value == null) {
+          throw new Error('Set called with an empty value')
         }
 
-        debug('set memory[%d] = %d', destAddress, register)
-        memory[destAddress] = register
+        debug('set memory[%d] = %d', destAddress, value)
+        memory[destAddress] = value
         pointerMove = 2
         break;
       }
       case 4: { // Get
-        register = paramValue(1)
-        debug('get register = %d', register)
+        output = paramValue(1)
+        debug('output = %d', output)
         pointerMove = 2
         break;
       }
@@ -153,9 +155,9 @@ export function intcode(m: Memory, register?: number) {
 
 
 
-  if (register != null) {
-    debug('return register', register)
-    return register
+  if (output != null) {
+    debug('return output', output)
+    return output
   }
   return memory
 }
@@ -169,8 +171,8 @@ const input = `3,225,1,225,6,6,1100,1,238,225,104,0,1101,48,82,225,102,59,84,224
 
 
 if (require.main === module) {
-  console.log('part1', intcode(parse(input), 1))
-  console.log('part2', intcode(parse(input), 5))
+  console.log('part1', intcode(parse(input), [1]))
+  console.log('part2', intcode(parse(input), [5]))
 }
 
 // debug('%o',
