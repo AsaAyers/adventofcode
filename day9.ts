@@ -27,6 +27,7 @@ if (require.main === module) {
   `
 
   console.log('part1', collectOutput(input, [1]))
+  console.log('part2', collectOutput(input, [2]))
 
   // let memory, iterator
   // memory = parse(input)
