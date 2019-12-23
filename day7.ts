@@ -134,9 +134,6 @@ export function debugOpCode(
       throw new Error(`Unknown mode: ${mode}`)
     }
 
-    if (type === Param.Value) {
-      return read(paramAddr)
-    }
     return paramAddr
   })
 
@@ -166,10 +163,11 @@ export function* intcode(
   }
 
   const addressNames: Record<number, string> = {}
-  const getName = (num: number) => {
-    addressNames[num] = addressNames[num] || chance.word()
-    return addressNames[num]
+  const getName = (addr: number) => {
+    addressNames[addr] = addressNames[addr] || chance.word()
+    return addressNames[addr] + `[${ram.memory[addr]}]`
   }
+  const read = (i: number) => ram.memory[i] || 0
 
   do {
     const meta = debugOpCode(ram)
@@ -180,18 +178,18 @@ export function* intcode(
       case OpCode.ADD: { // 1
         const [left, right, destAddress] = meta.resolved
 
-        debug('%d: %s = %d + %d', meta.instructionPointer, getName(destAddress), left, right)
-        ram.memory[destAddress] = left + right
+        debug('%d: %s = %s + %s', meta.instructionPointer, getName(destAddress), getName(left), getName(right))
+        ram.memory[destAddress] = read(left) + read(right)
         break;
       }
       case OpCode.MUL: { // 2
         const [left, right, destAddress] = meta.resolved
-        debug('%d: %s = %d * %d', meta.instructionPointer, getName(destAddress), left, right)
+        debug('%d: %s = %s * %s', meta.instructionPointer, getName(destAddress), getName(left), getName(right))
 
         if (left * right > Number.MAX_VALUE) {
           throw new Error("Process as Infinity");
         }
-        ram.memory[destAddress] = left * right
+        ram.memory[destAddress] = read(left) * read(right)
         break;
       }
       case OpCode.IN: { // 3
@@ -205,55 +203,55 @@ export function* intcode(
           throw new Error(`Invalid value ${value}`)
         }
 
-        debug('%d: %s = %d', meta.instructionPointer, getName(destAddress), value)
+        debug('%d: %s = %s', meta.instructionPointer, getName(destAddress), getName(value))
         ram.memory[destAddress] = value
         break;
       }
       case OpCode.OUT: { // 4
         const [output] = meta.resolved
-        debug('%d: output = %d', meta.instructionPointer, output)
-        yield output
+        debug('%d: output = %s', meta.instructionPointer, getName(output))
+        yield read(output)
         break;
       }
       case OpCode.JMPT: { // 5
         const [value, destination] = meta.resolved
-        debug('%d: if %d != 0 (%s)', meta.instructionPointer, value, getName(meta.instructionPointer))
-        if (value != 0) {
-          debug('  instructionPointer = %d', destination)
-          ram.instructionPointer = destination
+        debug('%d: if %s != 0 (%s)', meta.instructionPointer, getName(value), getName(meta.instructionPointer))
+        if (read(value) != 0) {
+          debug('  instructionPointer = %s', destination)
+          ram.instructionPointer = read(destination)
         }
         break;
       }
       case OpCode.JMPF: { // 6
         const [value, destination] = meta.resolved
 
-        debug('%d: if %d === 0 (%s)', meta.instructionPointer, value, getName(meta.instructionPointer))
-        if (value === 0) {
-          debug('  instructionPointer = %d', destination)
-          ram.instructionPointer = destination
+        debug('%d: if %s === 0 (%s)', meta.instructionPointer, getName(value), getName(meta.instructionPointer))
+        if (read(value) === 0) {
+          debug('  instructionPointer = %s', destination)
+          ram.instructionPointer = read(destination)
         }
         break;
       }
       case OpCode.LT: { // 7
         const [left, right, address] = meta.resolved
 
-        debug('%d: %s = (%d < %d)', meta.instructionPointer, getName(address), left, right)
-        ram.memory[address] = (left < right ? 1 : 0)
+        debug('%d: %s = (%s < %s)', meta.instructionPointer, getName(address), getName(left), getName(right))
+        ram.memory[address] = (read(left) < read(right) ? 1 : 0)
 
         break;
       }
       case OpCode.EQ: { // 8
         const [left, right, address] = meta.resolved
 
-        debug('%d: %s = (%d === %d)', meta.instructionPointer, getName(address), left, right)
-        ram.memory[address] = (left === right ? 1 : 0)
+        debug('%d: %s = (%s === %s)', meta.instructionPointer, getName(address), getName(left), getName(right))
+        ram.memory[address] = (read(left) === read(right) ? 1 : 0)
 
         break;
       }
       case OpCode.REL: { // 9
         const [value] = meta.resolved
-        ram.relativeBase += value
-        debug('%d: relativeBase += %d (%s)', meta.instructionPointer, value, getName(ram.relativeBase))
+        ram.relativeBase += read(value)
+        debug('%d: relativeBase += %s (%s)', meta.instructionPointer, getName(value), getName(ram.relativeBase))
         break;
       }
       case OpCode.END:
