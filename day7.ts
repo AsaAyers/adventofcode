@@ -1,87 +1,202 @@
 import { debuglog } from 'util'
+import Chance from 'chance'
+
+const chance = new Chance(1)
+
 
 const debug = debuglog('intcode')
+const debugOp = debuglog('intcode:op')
 const debugParams = debuglog('intcode:params')
 
 type Memory = Array<number>
 export const parse = (str: string): Memory => str.split(',').map(Number)
 
+interface RAM {
+  memory: Memory,
+  instructionPointer: number,
+  relativeBase: number,
+}
+
+enum OpCode {
+  ADD = 1,
+  MUL = 2,
+  IN = 3,
+  OUT = 4,
+  JMPT = 5,
+  JMPF = 6,
+  LT = 7,
+  EQ = 8,
+  REL = 9,
+  END = 99,
+}
+
+enum Param {
+  Value = 'v',
+  Address = 'a',
+}
+
+type OpCodeParams = {
+  [key in OpCode]: {
+    name: string,
+    paramTypes: Param[]
+  }
+}
+const opCodeInfo: OpCodeParams = {
+  [OpCode.ADD]: {
+    name: 'ADD',
+    paramTypes: [Param.Value, Param.Value, Param.Address],
+  },
+  [OpCode.MUL]: {
+    name: 'MUL',
+    paramTypes: [Param.Value, Param.Value, Param.Address],
+  },
+  [OpCode.IN]: {
+    name: 'IN',
+    paramTypes: [Param.Address],
+  },
+  [OpCode.OUT]: {
+    name: 'OUT',
+    paramTypes: [Param.Value],
+  },
+  [OpCode.JMPT]: {
+    name: 'JMPT',
+    paramTypes: [Param.Value, Param.Value],
+  },
+  [OpCode.JMPF]: {
+    name: 'JMPF',
+    paramTypes: [Param.Value, Param.Value],
+  },
+  [OpCode.LT]: {
+    name: 'LT',
+    paramTypes: [Param.Value, Param.Value, Param.Address],
+  },
+  [OpCode.EQ]: {
+    name: 'EQ',
+    paramTypes: [Param.Value, Param.Value, Param.Address],
+  },
+  [OpCode.REL]: {
+    name: 'REL',
+    paramTypes: [Param.Address],
+  },
+  [OpCode.END]: {
+    name: 'END',
+    paramTypes: [],
+  },
+}
+
+function isOpCode(code: number): code is OpCode {
+  return Object.keys(opCodeInfo).includes(String(code))
+}
+
+export function debugOpCode(
+  ram: RAM,
+) {
+  const read = (i: number) => ram.memory[i] || 0
+  const opCode = ram.memory[ram.instructionPointer] % 100
+  if (!isOpCode(opCode)) { throw new Error(`Invalid op code ${opCode}@${ram.instructionPointer}`) }
+
+  const { name, paramTypes } = opCodeInfo[opCode]
+
+  let pModes = Math.floor(read(ram.instructionPointer) / 100)
+  let paramModes: number[] = []
+  while (pModes > 0) {
+    paramModes.push(pModes % 10)
+    pModes = Math.floor(pModes / 10)
+  }
+
+  const parameters = paramTypes.map((type, i) => {
+    let modeName = ''
+    const mode = paramModes[i] || 0
+    if (mode === 1) {
+      modeName = ' imm'
+    } else if (mode === 2) {
+      modeName = ' rel'
+    }
+
+    return type + read(ram.instructionPointer + i + 1) + modeName
+  })
+
+  const resolved = paramTypes.map((type, i) => {
+    const offset = i + 1
+    let paramAddr
+
+    const mode = paramModes[i] || 0
+    if (mode === 0) {
+      paramAddr = ram.instructionPointer + offset
+      paramAddr = read(paramAddr)
+
+    } else if (mode === 1) { // immediate mode
+      paramAddr = ram.instructionPointer + offset
+    } else if (mode === 2) { // relative mode
+      paramAddr = ram.instructionPointer + offset
+      paramAddr = ram.relativeBase + read(paramAddr)
+    } else {
+      throw new Error(`Unknown mode: ${mode}`)
+    }
+
+    if (type === Param.Value) {
+      return read(paramAddr)
+    }
+    return paramAddr
+  })
+
+
+  return {
+    instructionPointer: ram.instructionPointer,
+    relativeBase: ram.relativeBase,
+    slice: ram.memory.slice(ram.instructionPointer),
+    full: read(ram.instructionPointer),
+    opCode,
+    name,
+    paramTypes,
+    parameters,
+    resolved,
+  }
+}
+
+
 export function* intcode(
   m: Memory,
 ): Generator<number | undefined> {
-  let output
   debug('intcode(%o, %o)', m)
-  const memory = [...m]
+  const ram: RAM = {
+    memory: [...m],
+    instructionPointer: 0,
+    relativeBase: 0,
+  }
 
-  let instructionPointer = 0
-
-  let opCode
+  const addressNames: Record<number, string> = {}
+  const getName = (num: number) => {
+    addressNames[num] = addressNames[num] || chance.word()
+    return addressNames[num]
+  }
 
   do {
-    opCode = memory[instructionPointer] % 100
+    const meta = debugOpCode(ram)
 
-    let tmp = Math.floor(memory[instructionPointer] / 100)
+    debugOp('op', meta)
 
-    let paramModes: number[] = []
-    while (tmp > 0) {
-      paramModes.push(tmp % 10)
-      tmp = Math.floor(tmp / 10)
-    }
+    switch (meta.opCode) {
+      case OpCode.ADD: { // 1
+        const [left, right, destAddress] = meta.resolved
 
-    let pointerMove = 1
-
-
-    const paramAddress = (i: number) => {
-      pointerMove = Math.max(pointerMove, i + 1)
-
-      debugParams('paramValue', { modes: paramModes, ptr: instructionPointer + i, memory })
-      switch (paramModes[i - 1]) {
-        case 1:
-          return memory[instructionPointer + i]
-        default: {
-          const address = memory[instructionPointer + i]
-          return memory[address]
-        }
-      }
-    }
-
-    const paramValue = (i: number) => {
-      pointerMove = Math.max(pointerMove, i + 1)
-
-      debugParams('paramValue', { modes: paramModes, ptr: instructionPointer + i, memory })
-      switch (paramModes[i - 1]) {
-        case 1:
-          return memory[instructionPointer + i]
-        default: {
-          const address = memory[instructionPointer + i]
-          return memory[address]
-        }
-      }
-    }
-
-    debug('opCode', memory[instructionPointer], output, memory)
-    switch (opCode) {
-      case 1: { // add
-        const left = paramValue(1)
-        const right = paramValue(2)
-        const destAddress = memory[instructionPointer + 3]
-        pointerMove = 4
-
-        debug('add', left, right)
-        memory[destAddress] = left + right
+        debug('%d: %s = %d + %d', meta.instructionPointer, getName(destAddress), left, right)
+        ram.memory[destAddress] = left + right
         break;
       }
-      case 2: { // multiply
-        const left = paramValue(1)
-        const right = paramValue(2)
-        const destAddress = memory[instructionPointer + 3]
-        pointerMove = 4
-        debug('multiply', left, right)
-        memory[destAddress] = left * right
+      case OpCode.MUL: { // 2
+        const [left, right, destAddress] = meta.resolved
+        debug('%d: %s = %d * %d', meta.instructionPointer, getName(destAddress), left, right)
+
+        if (left * right > Number.MAX_VALUE) {
+          throw new Error("Process as Infinity");
+        }
+        ram.memory[destAddress] = left * right
         break;
       }
-      case 3: { // Set
-        const destAddress = memory[instructionPointer + 1]
+      case OpCode.IN: { // 3
+        // const destAddress = ram.memory[ram.instructionPointer + 1]
+        const [destAddress] = meta.resolved
         const value = yield
         if (value == null) {
           throw new Error('Set called with an empty value')
@@ -90,76 +205,67 @@ export function* intcode(
           throw new Error(`Invalid value ${value}`)
         }
 
-        debug('set memory[%d] = %d', destAddress, value)
-        memory[destAddress] = value
-        pointerMove = 2
+        debug('%d: %s = %d', meta.instructionPointer, getName(destAddress), value)
+        ram.memory[destAddress] = value
         break;
       }
-      case 4: { // Get
-        const output = paramValue(1)
-        debug('output = %d', output)
+      case OpCode.OUT: { // 4
+        const [output] = meta.resolved
+        debug('%d: output = %d', meta.instructionPointer, output)
         yield output
-        pointerMove = 2
         break;
       }
-      case 5: { // jump-if-true
-        const value = paramValue(1)
-        const address = paramValue(2)
-        debug('if %d != 0 jump %d', value, address)
+      case OpCode.JMPT: { // 5
+        const [value, destination] = meta.resolved
+        debug('%d: if %d != 0 (%s)', meta.instructionPointer, value, getName(meta.instructionPointer))
         if (value != 0) {
-          instructionPointer = address
-          pointerMove = 0
-        } else {
-          pointerMove = 3
+          debug('  instructionPointer = %d', destination)
+          ram.instructionPointer = destination
         }
         break;
       }
-      case 6: { // jump-if-false
-        const value = paramValue(1)
-        const address = paramValue(2)
+      case OpCode.JMPF: { // 6
+        const [value, destination] = meta.resolved
 
-        debug('if %d === 0 jump %d', value, address)
+        debug('%d: if %d === 0 (%s)', meta.instructionPointer, value, getName(meta.instructionPointer))
         if (value === 0) {
-          instructionPointer = address
-          pointerMove = 0
-        } else {
-          pointerMove = 3
+          debug('  instructionPointer = %d', destination)
+          ram.instructionPointer = destination
         }
         break;
       }
-      case 7: { // less than
-        const left = paramValue(1)
-        const right = paramValue(2)
-        const address = memory[instructionPointer + 3]
+      case OpCode.LT: { // 7
+        const [left, right, address] = meta.resolved
 
-        debug('set memory[%d] = (%d < %d)', address, left, right)
-        memory[address] = (left < right ? 1 : 0)
+        debug('%d: %s = (%d < %d)', meta.instructionPointer, getName(address), left, right)
+        ram.memory[address] = (left < right ? 1 : 0)
 
-        pointerMove = 4
         break;
       }
-      case 8: { // equals
-        const left = paramValue(1)
-        const right = paramValue(2)
-        const address = memory[instructionPointer + 3]
+      case OpCode.EQ: { // 8
+        const [left, right, address] = meta.resolved
 
-        debug('set memory[%d] = (%d === %d)', address, left, right)
-        memory[address] = (left === right ? 1 : 0)
+        debug('%d: %s = (%d === %d)', meta.instructionPointer, getName(address), left, right)
+        ram.memory[address] = (left === right ? 1 : 0)
 
-        pointerMove = 4
         break;
       }
-      case 99:
-        pointerMove = 0
+      case OpCode.REL: { // 9
+        const [value] = meta.resolved
+        ram.relativeBase += value
+        debug('%d: relativeBase += %d (%s)', meta.instructionPointer, value, getName(ram.relativeBase))
         break;
+      }
+      case OpCode.END:
+        return
       default:
-        throw new Error(`Invalid op code at address ${instructionPointer}: ${memory[instructionPointer]} `)
+        throw new Error(`Invalid op code at address ${ram.instructionPointer}: ${ram.memory[ram.instructionPointer]} `)
     }
 
-    instructionPointer += pointerMove
-  } while (opCode !== 99)
-
-  // return memory
+    if (ram.instructionPointer === meta.instructionPointer) {
+      ram.instructionPointer += meta.parameters.length + 1
+    }
+  } while (true)
 }
 
 export function amp(program: string, sequence: string) {

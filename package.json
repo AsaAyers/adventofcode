@@ -4,6 +4,7 @@
   "description": "",
   "main": "day1.js",
   "scripts": {
+    "start": "nodemon --ext js,ts --exec ts-node",
     "test": "jest"
   },
   "author": "Asa Ayers <Asa@AsaAyers.com>",
@@ -15,8 +16,10 @@
     "nodemon": "^2.0.2"
   },
   "dependencies": {
+    "@types/chance": "^1.0.7",
     "@types/jest": "^24.0.24",
     "@types/node": "^12.12.21",
+    "chance": "^1.1.4",
     "jest": "^24.9.0",
     "ts-jest": "^24.2.0",
     "ts-node": "^8.5.4",
