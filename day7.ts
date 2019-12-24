@@ -321,17 +321,20 @@ export function feedback(program: string, sequence: string) {
 
 export function* permutationGenerator<T>(
   items: T[],
-  prefix: T[] = []
+  prefix: T[] = [],
+  targetLength = items.length
 ): Generator<T[]> {
-  if (items.length === 0) {
-    yield prefix.concat(items)
+  if (prefix.length === targetLength) {
+    yield prefix
+  } else if (prefix.length > targetLength) {
+    return
   }
 
   for (let i = 0; i < items.length; i++) {
     const rest = [...items]
     let [current] = rest.splice(i, 1)
 
-    yield* permutationGenerator(rest, prefix.concat([current]))
+    yield* permutationGenerator(rest, prefix.concat([current]), targetLength)
   }
 }
 
