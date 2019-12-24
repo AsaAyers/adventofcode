@@ -21,5 +21,5 @@ test('example2', () => {
     new Moon("Callisto", 9, -8, -3),
   ]
   expect(energyAfterSteps(100, moons)).toBe(1940)
-  // expect(periodicSteps(moons)).toBe(4686774924)
+  // expect(periodicSteps(moons)).toBe(4_686_774_924)
 })

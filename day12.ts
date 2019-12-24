@@ -1,8 +1,7 @@
+import { performance } from 'perf_hooks'
 import { debuglog } from 'util'
-import { permutationGenerator } from './day7'
 
 const debug = debuglog('day12')
-const debugSteps = debuglog('day12:steps')
 
 type Velocity = {
   x: number,
@@ -39,7 +38,6 @@ export class Moon {
       && moon.velocity.y === this.velocity.y
       && moon.velocity.z === this.velocity.z
     )
-
   }
 
   public potentialEnergy() {
@@ -79,21 +77,14 @@ function move(moon: Moon) {
 }
 
 function timeStep(moons: Moon[]) {
-  let done: string[] = []
-  for (let [a, b] of permutationGenerator(moons, [], 2)) {
-    // There's probably a better way to make the permutationGenerator do this,
-    // but on the scale of  4 moons this works fine
-    const key = [a.name, b.name].sort().join('-')
-    if (!done.includes(key)) {
-      // console.log(a.name, b.name)
-      gravity(a, b, 'x')
-      gravity(a, b, 'y')
-      gravity(a, b, 'z')
-      done.push(key)
+  for (let i = 0; i < moons.length; i++) {
+    for (let j = i + 1; j < moons.length; j++) {
+      gravity(moons[i], moons[j], 'x')
+      gravity(moons[i], moons[j], 'y')
+      gravity(moons[i], moons[j], 'z')
     }
+    move(moons[i])
   }
-
-  moons.forEach(move)
 }
 
 function logStep(steps: number, moons: Moon[]) {
@@ -122,29 +113,30 @@ export function energyAfterSteps(maxSteps: number, originalMoons: Moon[]) {
   }, 0)
 }
 
+const timeout = 15000
 export function periodicSteps(moons: Moon[]) {
-  const groupA = moons.map(m => m.clone())
-  const groupB = moons.map(m => m.clone())
+  const start = performance.now()
+  const clones = moons.map(m => m.clone())
+
+  const allSame = () => {
+    for (let i = 0; i < clones.length; i++) {
+      if (!clones[i].isSamePositionAndVelocity(moons[i])) {
+        return false
+      }
+    }
+    return true
+  }
 
   let steps = 0
-
-  const allSame = () => groupA.reduce(
-    (same, moon, index) => same && moon.isSamePositionAndVelocity(groupB[index]),
-    true
-  )
-
   do {
-    timeStep(groupA)
+    timeStep(clones)
     steps++
-    debugSteps('steps', steps)
 
-    // If one group travels twice as fast as the other, it will complete the
-    // loop and find where it repeats.
-    timeStep(groupB)
-    timeStep(groupB)
+    if (performance.now() - start > timeout) {
+      throw new Error(`Timeout: ${steps} steps - ${Math.floor(steps / (timeout / 1000))} steps/second`)
+    }
   } while (!allSame())
   return steps
-
 }
 
 
@@ -160,5 +152,15 @@ if (require.main === module) {
   console.log('phase1', total)
   // console.log('phase2', periodicSteps(moons))
 
+
+  {
+    const moons = [
+      new Moon("Io", -8, -10, 0),
+      new Moon("Europa", 5, 5, 10),
+      new Moon("Ganymede", 2, -7, 3),
+      new Moon("Callisto", 9, -8, -3),
+    ]
+    console.log(periodicSteps(moons))
+  }
 
 }
