@@ -8,13 +8,10 @@ function collectOutput(program: string, inputs: number[]) {
   let current = iterator.next()
 
   const out = []
-  while (true) {
+  while (!current.done) {
     const tmp = inputs.shift()
     current = tmp != null ? iterator.next(tmp) : iterator.next()
     out.push(current)
-    if (current.done) {
-      break;
-    }
   }
 
   return out
