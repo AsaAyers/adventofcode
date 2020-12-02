@@ -1,5 +1,4 @@
-import fs from "fs";
-import path from "path";
+import { run } from "../common";
 
 type Item = {
   password: string;
@@ -35,11 +34,11 @@ function parse(str: string): Data {
     .filter(Boolean);
 }
 
-const exampleInput = parse(`
+const exampleInput = `
 1-3 a: abcde
 1-3 b: cdefg
 2-9 c: ccccccccc
-`);
+`;
 // How many passwords are valid according to their policies?
 const exampleOutput: Output = 2;
 
@@ -72,24 +71,13 @@ function part2(input: Data): typeof exampleOutput {
   }).length;
 }
 
-async function run() {
-  const value = part1(exampleInput);
-  if (value === exampleOutput) {
-    const inputStr = String(fs.readFileSync(path.join(__dirname, "input.txt")));
-    if (!inputStr) {
-      throw new Error("input.txt is empty");
-    }
-
-    const myInput = parse(inputStr);
-
-    console.log("Part1:");
-    console.log(part1(myInput));
-    console.log("Part2:");
-    console.log(part2(myInput));
-  } else {
-    console.log(`Actual:`, value);
-
-    console.log(`Expected:`, exampleOutput);
-  }
+if (require.main === module) {
+  run({
+    parse,
+    exampleInput,
+    exampleOutput,
+    part1,
+    part2,
+    dir: __dirname,
+  });
 }
-run();
