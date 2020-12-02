@@ -1,0 +1,30 @@
+{
+  "name": "adventofcode",
+  "version": "1.0.0",
+  "description": "",
+  "main": "day1.js",
+  "scripts": {
+    "start": "nodemon --ext js,ts --exec ts-node",
+    "test": "jest"
+  },
+  "author": "Asa Ayers <Asa@AsaAyers.com>",
+  "license": "ISC",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^2.34.0",
+    "@typescript-eslint/parser": "^2.34.0",
+    "eslint": "^6.8.0",
+    "nodemon": "^2.0.6"
+  },
+  "dependencies": {
+    "@types/axel": "0.0.0",
+    "@types/chance": "^1.1.0",
+    "@types/jest": "^24.9.1",
+    "@types/node": "^12.19.8",
+    "axel": "0.0.3",
+    "chance": "^1.1.7",
+    "jest": "^24.9.0",
+    "ts-jest": "^24.3.0",
+    "ts-node": "^8.10.2",
+    "typescript": "^3.9.7"
+  }
+}
