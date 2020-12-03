@@ -4,7 +4,7 @@
   "description": "",
   "main": "day1.js",
   "scripts": {
-    "start": "nodemon --ext js,ts --exec ts-node",
+    "start": "nodemon --ext js,ts,txt --exec ts-node",
     "test": "jest"
   },
   "author": "Asa Ayers <Asa@AsaAyers.com>",

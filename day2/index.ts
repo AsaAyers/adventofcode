@@ -22,7 +22,7 @@ function parse(str: string): Data {
           throw new Error(`Failed to parse: '${line}'`);
         }
 
-        const [_, min, max, policyCharacter, password] = data;
+        const [, min, max, policyCharacter, password] = data;
         return {
           min: Number(min),
           max: Number(max),
