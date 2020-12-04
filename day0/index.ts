@@ -1,18 +1,28 @@
 import { run } from "../common";
 
 function parse(str: string) {
-  return str.trim().split("\n").map(Number).filter(Boolean);
+  return str
+    .trim()
+    .split("\n")
+    .map((line) => {
+      return line.split("");
+    });
 }
 
 if (require.main === module) {
+  console.clear();
   run({
     parse,
     exampleInput: ``,
-    exampleOutput: 4,
-    part1(_input) {
+    exampleOutput: 0,
+    part1(input) {
+      console.log(input);
       return 0;
     },
-    part2(_input) {
+    part2Input: ``,
+    part2Output: 1,
+    part2(input) {
+      console.log(input);
       return 1;
     },
     dir: __dirname,

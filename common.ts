@@ -5,7 +5,8 @@ type Day<Data, Output> = {
   parse(str: string): Data | Promise<Data>;
   exampleInput: string;
   exampleOutput: Output;
-  part2Example?: Output;
+  part2Input?: string;
+  part2Output?: Output;
   part1(input: Data): Output | Promise<Output>;
   part2(input: Data): Output | Promise<Output>;
   dir: string;
@@ -16,7 +17,8 @@ export async function run<Data, Output>({
   exampleOutput,
   part1,
   part2,
-  part2Example,
+  part2Input,
+  part2Output,
   dir,
 }: Day<Data, Output>) {
   const value = await part1(await parse(exampleInput));
@@ -31,13 +33,13 @@ export async function run<Data, Output>({
     console.log("Part1:");
     console.log(await part1(myInput));
 
-    if (part2Example) {
-      const value = await part2(await parse(exampleInput));
+    if (part2Output) {
+      const value = await part2(await parse(part2Input || exampleInput));
 
-      if (value !== part2Example) {
+      if (value !== part2Output) {
         console.log("Part 2");
         console.log(`Actual:`, value);
-        console.log(`Expected:`, part2Example);
+        console.log(`Expected:`, part2Output);
         return;
       }
       console.log("Part2:");
