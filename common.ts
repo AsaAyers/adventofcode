@@ -33,7 +33,7 @@ export async function run<Data, Output>({
     console.log("Part1:");
     console.log(await part1(myInput));
 
-    if (part2Output) {
+    if (part2Output != null) {
       const value = await part2(await parse(part2Input || exampleInput));
 
       if (value !== part2Output) {
@@ -42,9 +42,9 @@ export async function run<Data, Output>({
         console.log(`Expected:`, part2Output);
         return;
       }
-      console.log("Part2:");
-      console.log(await part2(myInput));
     }
+    console.log("Part2:");
+    console.log(await part2(myInput));
   } else {
     console.log("Part 1");
     console.log(`Actual:`, value);

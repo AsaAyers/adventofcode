@@ -23,7 +23,7 @@ if (require.main === module) {
     part2Output: 1,
     part2(input) {
       console.log(input);
-      return 1;
+      return 0;
     },
     dir: __dirname,
   });
