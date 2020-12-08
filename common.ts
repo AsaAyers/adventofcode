@@ -33,17 +33,16 @@ export async function run<Data, Output>({
     console.log("Part1:");
     console.log(await part1(myInput));
 
+    console.log("Part2:");
     if (part2Output != null) {
       const value = await part2(await parse(part2Input || exampleInput));
 
       if (value !== part2Output) {
-        console.log("Part 2");
         console.log(`Actual:`, value);
         console.log(`Expected:`, part2Output);
         return;
       }
     }
-    console.log("Part2:");
     console.log(await part2(myInput));
   } else {
     console.log("Part 1");

@@ -1,6 +1,6 @@
 import { run } from "../common";
 
-type Instructions = Array<[string, number]>;
+type Instructions = ReadonlyArray<[string, number]>;
 
 function parse(str: string): Instructions {
   return str
@@ -27,6 +27,10 @@ function makeProgram(instructions: Instructions) {
     get done() {
       return instructionPointer === instructions.length;
     },
+    peekOp() {
+      const [operation] = instructions[instructionPointer];
+      return operation;
+    },
     makeSnapshot() {
       return { accumulator, instructionPointer };
     },
@@ -39,12 +43,12 @@ function makeProgram(instructions: Instructions) {
 
       switch (operation) {
         case "acc":
-          console.log(instructionPointer, operation, arg);
+          // console.log(instructionPointer, operation, arg, accumulator);
           accumulator += arg;
           instructionPointer++;
           return;
         case "jmp":
-          console.log(instructionPointer, operation, arg);
+          // console.log(instructionPointer, operation, arg);
           instructionPointer += arg;
           return;
         case "nop":
@@ -57,18 +61,22 @@ function makeProgram(instructions: Instructions) {
 
 type Program = ReturnType<typeof makeProgram>;
 function runProgram(program: Program) {
-  const executed: number[] = [];
+  const ipHistory: number[] = [];
+  const snapshots: any[] = [];
 
   while (!program.done) {
     const ip = program.instructionPointer;
-    executed[ip] = (executed[ip] || 0) + 1;
-    if (executed[ip] > 1) {
-      // loop detected
-      return "loop";
+    // loop detected
+    if (ipHistory.includes(ip)) {
+      console.log("loop at instruction", ip);
+      break;
     }
+    ipHistory.push(ip);
+    snapshots.push(program.makeSnapshot());
 
     program.next();
   }
+  return snapshots;
 }
 
 if (require.main === module) {
@@ -106,11 +114,42 @@ acc +6
     `,
     part2Output: 8,
     // To solve part 2 I logged all jmp/nop and then manually changed the last
-    // one it visited, then moved backward changing them.// To solve part 2 I logged all /nop and then manually changed the last one it visitedacc
+    // one it visited, then moved backward changing them.
     part2(input: Instructions) {
       const program = makeProgram(input);
+      const snapshots = runProgram(program);
+      // console.log(
+      //   input.map(([op, arg], index) => `${index}: ${op} ${arg}`).join("\n")
+      // );
+      // console.log(snapshots);
 
-      console.log(runProgram(program));
+      while (!program.done && snapshots.length > 0) {
+        const snapshot = snapshots.pop();
+
+        // program won't run again, I'm just using to read the snapshots. Even
+        // though this snapshot only has 2 items, I like treating it as if it's
+        // opaque.
+        program.loadSnapshot(snapshot);
+        const op = program.peekOp();
+        const ip = program.instructionPointer;
+        switch (op) {
+          case "jmp":
+          case "nop": {
+            const instructions = [...input];
+
+            const [original, arg] = instructions[ip];
+            instructions[ip] = original === "nop" ? ["jmp", arg] : ["nop", arg];
+            console.log(`flipped ${original} at ${ip} to ${instructions[ip]}`);
+            const tmpProgram = makeProgram(instructions);
+            runProgram(tmpProgram);
+            if (tmpProgram.done) {
+              console.log("finished");
+              return tmpProgram.acc;
+            }
+          }
+        }
+      }
+
       return program.acc;
     },
     dir: __dirname,
