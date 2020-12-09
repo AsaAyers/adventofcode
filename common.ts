@@ -7,8 +7,8 @@ type Day<Data, Output> = {
   exampleOutput: Output;
   part2Input?: string;
   part2Output?: Output;
-  part1(input: Data): Output | Promise<Output>;
-  part2(input: Data): Output | Promise<Output>;
+  part1(input: Data, isExample?: boolean): Output | Promise<Output>;
+  part2(input: Data, isExample?: boolean): Output | Promise<Output>;
   dir: string;
 };
 export async function run<Data, Output>({
@@ -21,7 +21,7 @@ export async function run<Data, Output>({
   part2Output,
   dir,
 }: Day<Data, Output>) {
-  const value = await part1(await parse(exampleInput));
+  const value = await part1(await parse(exampleInput), true);
   if (value === exampleOutput) {
     const inputStr = String(fs.readFileSync(path.join(dir, "input.txt")));
     if (!inputStr) {
@@ -31,11 +31,11 @@ export async function run<Data, Output>({
     const myInput = await parse(inputStr);
 
     console.log("Part1:");
-    console.log(await part1(myInput));
+    console.log(await part1(myInput, false));
 
     console.log("Part2:");
     if (part2Output != null) {
-      const value = await part2(await parse(part2Input || exampleInput));
+      const value = await part2(await parse(part2Input || exampleInput), true);
 
       if (value !== part2Output) {
         console.log(`Actual:`, value);
@@ -43,7 +43,7 @@ export async function run<Data, Output>({
         return;
       }
     }
-    console.log(await part2(myInput));
+    console.log(await part2(myInput, false));
   } else {
     console.log("Part 1");
     console.log(`Actual:`, value);
