@@ -1,9 +1,22 @@
 import { run } from "../common";
 
-const EMPTY = "L";
-const OCCUPIED = "#";
-const FLOOR = ".";
-type State = typeof EMPTY | typeof OCCUPIED | typeof FLOOR;
+enum State {
+  Empty = "L",
+  Occupied = "#",
+  Floor = ".",
+}
+
+const stateValues = Object.values(State);
+function isState(str: any): str is State {
+  return stateValues.includes(str);
+}
+
+// This doesn't work with Enums
+// function isEnum<T>(t: T) {
+//   const values = Object.values(t);
+//   return (i: any): i is T => values.includes(i);
+// }
+// const isState = isEnum(State);
 
 type SeatLayout = Array<Array<State>>;
 function parse(str: string): SeatLayout {
@@ -11,8 +24,8 @@ function parse(str: string): SeatLayout {
     .trim()
     .split("\n")
     .map((line) => {
-      return line.split("");
-    }) as any;
+      return line.split("").filter(isState);
+    });
 }
 
 function printSeats(seats: SeatLayout): string {
@@ -34,7 +47,7 @@ function countAdjacent(seats: SeatLayout, x: number, y: number): number {
         continue;
       }
 
-      if (r[x + x2] === OCCUPIED) {
+      if (r[x + x2] === State.Occupied) {
         occupiedAdjacent++;
       }
     }
@@ -49,7 +62,7 @@ function read(seats: SeatLayout, y: number, x: number): State {
       return row[x];
     }
   }
-  return FLOOR;
+  return State.Floor;
 }
 
 export function countLineOfSight(
@@ -70,39 +83,41 @@ export function countLineOfSight(
   const max = Math.max(seats.length, seats[0].length);
 
   for (let i = 1; i < max; i++) {
-    if (!firstSeat.w && read(seats, y, x - i) !== FLOOR) {
+    if (!firstSeat.w && read(seats, y, x - i) !== State.Floor) {
       firstSeat.w = read(seats, y, x - i);
     }
-    if (!firstSeat.e && read(seats, y, x + i) !== FLOOR) {
+    if (!firstSeat.e && read(seats, y, x + i) !== State.Floor) {
       firstSeat.e = read(seats, y, x + i);
     }
-    if (!firstSeat.n && read(seats, y - i, x) !== FLOOR) {
+    if (!firstSeat.n && read(seats, y - i, x) !== State.Floor) {
       firstSeat.n = read(seats, y - i, x);
     }
-    if (!firstSeat.s && read(seats, y + i, x) !== FLOOR) {
+    if (!firstSeat.s && read(seats, y + i, x) !== State.Floor) {
       firstSeat.s = read(seats, y + i, x);
     }
-    if (!firstSeat.nw && read(seats, y - i, x - i) !== FLOOR) {
+    if (!firstSeat.nw && read(seats, y - i, x - i) !== State.Floor) {
       firstSeat.nw = read(seats, y - i, x - i);
     }
-    if (!firstSeat.sw && read(seats, y + i, x - i) !== FLOOR) {
+    if (!firstSeat.sw && read(seats, y + i, x - i) !== State.Floor) {
       firstSeat.sw = read(seats, y + i, x - i);
     }
-    if (!firstSeat.ne && read(seats, y - i, x + i) !== FLOOR) {
+    if (!firstSeat.ne && read(seats, y - i, x + i) !== State.Floor) {
       firstSeat.ne = read(seats, y - i, x + i);
     }
-    if (!firstSeat.se && read(seats, y + i, x + i) !== FLOOR) {
+    if (!firstSeat.se && read(seats, y + i, x + i) !== State.Floor) {
       firstSeat.se = read(seats, y + i, x + i);
     }
   }
   // console.log(x, y, seats[y][x]);
 
-  return Object.values(firstSeat).filter((seat) => seat === OCCUPIED).length;
+  return Object.values(firstSeat).filter((seat) => seat === State.Occupied)
+    .length;
 }
 
 const countOccupied = (seats: SeatLayout) =>
   seats.reduce(
-    (total, row) => total + row.filter((seat) => seat === OCCUPIED).length,
+    (total, row) =>
+      total + row.filter((seat) => seat === State.Occupied).length,
     0
   );
 
@@ -125,15 +140,15 @@ function applyRules(
       // Copy the current seat by default
       nextGeneration[y][x] = seat;
       switch (seat) {
-        case EMPTY:
+        case State.Empty:
           if (occupiedAdjacent === 0) {
-            nextGeneration[y][x] = OCCUPIED;
+            nextGeneration[y][x] = State.Occupied;
           }
 
           break;
-        case OCCUPIED:
+        case State.Occupied:
           if (occupiedAdjacent >= threshold) {
-            nextGeneration[y][x] = EMPTY;
+            nextGeneration[y][x] = State.Empty;
           }
       }
     }
