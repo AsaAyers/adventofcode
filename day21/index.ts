@@ -33,10 +33,9 @@ const findCommon = (items: string[][]) => {
   return first.filter((tmp) => items.every((list) => list.includes(tmp)));
 };
 
-function part1(input: Input): any {
+function findAllergens(input: Input) {
   const allergenMap = groupRecipiesByAllergen(input);
   const allergens = Object.keys(allergenMap);
-  const resolved: string[] = [];
 
   const possibleAllergens = Object.fromEntries(
     Object.entries(allergenMap).map(([name, allergens]) => {
@@ -44,33 +43,40 @@ function part1(input: Input): any {
     })
   );
 
-  while (allergens.length > resolved.length) {
+  const resolved: Record<string, string> = {};
+  while (allergens.length > Object.keys(resolved).length) {
     for (const name in possibleAllergens) {
       console.log(name, possibleAllergens[name]);
       const tmp = possibleAllergens[name].filter(
-        (item) => !resolved.includes(item)
+        (item) => resolved[item] === undefined
       );
 
       if (tmp.length === 1) {
-        resolved.push(tmp[0]);
-        console.log("resolved", tmp);
+        resolved[tmp[0]] = name;
+        // console.log("resolved", resolved);
       }
       possibleAllergens[name] = tmp;
     }
   }
 
-  console.log(resolved);
+  return resolved;
+}
+
+function part1(input: Input): any {
+  const resolved = findAllergens(input);
   return input.reduce((total, item) => {
     return (
-      total + item.ingredients.filter((tmp) => !resolved.includes(tmp)).length
+      total +
+      item.ingredients.filter((tmp) => resolved[tmp] === undefined).length
     );
   }, 0);
-  // return allergens.map((name) => {
-  //   return findCommon(allergenMap[name]);
-  // });
 }
 function part2(input: Input): any {
-  return input;
+  const resolved = findAllergens(input);
+
+  return Object.keys(resolved)
+    .sort((a, b) => (resolved[a] < resolved[b] ? -1 : 1))
+    .join(",");
 }
 
 if (require.main === module) {
@@ -102,7 +108,7 @@ sqjhc mxmxvkd sbzzf (contains fish)
     label: "Part 2 Example",
     parse,
     input: part2Example || part1Example,
-    expect: 0,
+    expect: "mxmxvkd,sqjhc,fvjkl",
     func: part2,
   });
 
