@@ -51,11 +51,11 @@ function readEdge(tile: Tile, side: Side) {
     case "N":
       return tile.pixels[0].join("");
     case "S":
-      return tile.pixels[tile.pixels.length - 1];
+      return tile.pixels[tile.pixels.length - 1].join("");
     case "E":
-      return tile.pixels.map((row) => row[0]);
+      return tile.pixels.map((row) => row[0]).join("");
     case "W":
-      return tile.pixels.map((row) => row[row.length - 1]);
+      return tile.pixels.map((row) => row[row.length - 1]).join("");
   }
 }
 
@@ -92,7 +92,10 @@ const printTile = (tile: Tile): string =>
 const printGrid = (grid: Tile[][]): string =>
   grid
     .map((row) => {
-      const tiles = row.map(printTile).map((str) => str.split("\n"));
+      const tiles = row.map(printTile).map((str) => {
+        const tileRow = str.split("\n");
+        return tileRow;
+      });
 
       return tiles[0]
         .map((_line, rowIndex) => tiles.map((f) => f[rowIndex]).join(" "))
@@ -120,17 +123,27 @@ const oppositeSide: Record<Side, Side> = {
 };
 
 function edgesMatch(a: Tile, direction: Side, b: Tile) {
-  return readEdge(a, direction) === readEdge(b, oppositeSide[direction]);
+  const edgeA = readEdge(a, direction);
+  const edgeB = readEdge(b, oppositeSide[direction]);
+  // console.log(
+  //   "edgesMatch?",
+  //   a.id,
+  //   direction,
+  //   b.id,
+  //   edgeA,
+  //   edgeA === edgeB,
+  //   edgeB
+  // );
+  return edgeA === edgeB;
 }
 
-function isValid(grid: Tile[][], x: number, y: number): boolean {
-  const neighbors: Array<[Side, number, number]> = [
-    ["N", 0, -1],
-    ["S", 0, 1],
-    ["E", 1, 0],
-    ["W", -1, 0],
-  ];
-
+const neighbors: Array<[Side, number, number]> = [
+  ["N", 0, -1],
+  ["S", 0, 1],
+  ["E", 1, 0],
+  ["W", -1, 0],
+];
+export function isValid(grid: Tile[][], x: number, y: number): boolean {
   const self = grid[y][x];
 
   return neighbors.every(([direction, xOffset, yOffset]) => {
@@ -147,16 +160,132 @@ function isValid(grid: Tile[][], x: number, y: number): boolean {
   });
 }
 
+function traverseGrid<T>(
+  grid: Tile[][],
+  callback: (t: Tile, x: number, y: number) => T
+) {
+  return grid.flatMap((row, y) =>
+    row.map((_tile, x) => callback(grid[y][x], x, y))
+  );
+}
+
+const findNeighbors = (grid: Tile[][], currentTile: Tile, side: Side) => {
+  const [direction, x, y] = neighbors.find(
+    ([direction]) => direction === side
+  )!;
+
+  return traverseGrid(grid, (tile) => {
+    if (currentTile.id == tile.id) {
+      return [];
+    }
+
+    let t = tile;
+    if (edgesMatch(currentTile, direction, t)) {
+      return { x, y, t };
+    }
+    t = flip(t);
+    if (edgesMatch(currentTile, direction, t)) {
+      return { x, y, t };
+    }
+    t = rotate(t);
+    if (edgesMatch(currentTile, direction, t)) {
+      return { x, y, t };
+    }
+    return [];
+  }).flat(2);
+};
+
+const isValidGrid = (grid: Tile[][]) =>
+  grid.every((row, y) => row.every((tile, x) => isValid(grid, x, y)));
+
+const notEmpty = <T>(t: T): t is T => t != null;
+
+const findAddress = (grid: Tile[][], id: Tile["id"]) =>
+  traverseGrid(grid, (tile, x, y) => {
+    if (tile.id === id) {
+      return { x, y };
+    }
+  }).filter(notEmpty)[0]!;
+
+export const matchNeighbors = (
+  grid: Tile[][],
+  current: { x: number; y: number }
+) => {
+  const currentTile = grid[current.y][current.x];
+  console.log("current", current, currentTile.id);
+  const neighbors = findNeighbors(grid, currentTile, "E");
+
+  for (let i = 0; i < neighbors.length; i++) {
+    const { x, y, t } = neighbors[i];
+    if (current.y + y < 0) {
+      console.log("pop/unshift rows");
+      grid.unshift(grid.pop()!);
+      current.y++;
+    }
+    if (current.x + x < 0) {
+      console.log("pop/unshift columns");
+      grid.forEach((row) => {
+        row.unshift(row.pop()!);
+      });
+      current.x++;
+    }
+    if (current.y + y >= grid.length) {
+      console.log("shift/push rows");
+      grid.push(grid.shift()!);
+      current.y--;
+    }
+    const row = grid[current.y + y];
+    if (current.x + x >= row.length) {
+      console.log("shift/push rows");
+      grid.forEach((row) => {
+        row.push(row.shift()!);
+      });
+      current.x--;
+    }
+
+    const tmp = findAddress(grid, t.id);
+
+    if (!tmp) {
+      throw new Error(`Failed to find address for ${t.id}\n${printGrid(grid)}`);
+    }
+
+    const currentNeighbor = grid[current.y + y][current.x + x];
+    grid[tmp.y][tmp.x] = currentNeighbor;
+    grid[current.y + y][current.x + x] = t;
+
+    console.log(
+      "moved",
+      t.id,
+      {
+        x: current.x + x,
+        y: current.y + y,
+      },
+      "=>",
+      currentNeighbor.id,
+      tmp
+    );
+  }
+};
+
 function part1(grid: Input): any {
   console.log(printGrid(grid));
 
-  console.log(isValid(grid, 0, 0));
-  for (let y = 0; y < grid.length; y++) {
-    const row = grid[y];
-
-    for (let x = 0; x < row.length; x++) {}
+  let count = 0;
+  while (!isValidGrid(grid) && count++ < 500) {
+    for (let y = 0; y < grid.length; y++) {
+      const row = grid[y];
+      for (let x = 0; x < row.length; x++) {
+        if (!isValid(grid, x, y)) {
+          matchNeighbors(grid, { x, y });
+        }
+      }
+    }
+    // matchNeighbors(grid, { x: 0, y: 0 });
+    // break;
   }
 
+  console.log("count:", count);
+  console.log(printGrid(grid));
   return multiplyCorners(grid);
 }
 function part2(input: Input): any {
