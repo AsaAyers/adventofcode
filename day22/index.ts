@@ -12,17 +12,13 @@ function parse(str: string) {
 type Deck = number[];
 type Input = ReturnType<typeof parse>;
 
-function combat(player1: Deck, player2: Deck) {
-  const card1 = player1.shift()!;
-  const card2 = player2.shift()!;
-
-  console.log("cards:", card1, card2);
-  if (card1 > card2) {
-    player1.push(card1, card2);
-  } else {
-    player2.push(card2, card1);
-  }
-}
+type Game = {
+  id: string;
+  player1: number[];
+  player2: number[];
+  history: string[];
+  winner?: 1 | 2;
+};
 
 function scoreDeck(deck: Deck) {
   return deck.reduce((sum, card, index) => {
@@ -31,15 +27,92 @@ function scoreDeck(deck: Deck) {
   }, 0);
 }
 
-function part1([player1, player2]: Input): any {
-  while (player1.length > 0 && player2.length > 0) {
-    combat(player1, player2);
+const deckHash = (player1: Deck, player2: Deck) =>
+  scoreDeck(player1) + ":" + scoreDeck(player2);
+
+function combat(game: Game, recursive = false): void {
+  const { player1, player2 } = game;
+
+  const h1 = deckHash(game.player1, game.player2);
+  if (game.history.includes(h1)) {
+    game.winner = 1;
+    // console.log("loop 1", h1, h1, game.history);
+    return;
   }
+  game.history.push(h1);
+
+  const card1 = player1.shift()!;
+  const card2 = player2.shift()!;
+  console.log("cards:", game.id, game.history.length, card1, card2);
+
+  if (recursive) {
+    // If both players have at least as many cards remaining in their deck as
+    // the value of the card they just drew, the winner of the round is
+    // determined by playing a new game of Recursive Combat (see below).
+    if (player1.length >= card1 && player2.length >= card2) {
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
+      const minigame = playGame(
+        player1.slice(0, card1),
+        player2.slice(0, card2),
+        false
+      );
+      // console.log("recursive....", game.id, minigame.id);
+
+      if (minigame.winner == 1) {
+        player1.push(card1, card2);
+      } else {
+        player2.push(card2, card1);
+      }
+      return;
+    }
+  }
+
+  if (card1 > card2) {
+    player1.push(card1, card2);
+  } else {
+    player2.push(card2, card1);
+  }
+}
+
+let gameId = 1;
+function playGame(player1: Deck, player2: Deck, recursive = false): Game {
+  const game: Game = {
+    id: String(gameId++),
+    player1: [...player1],
+    player2: [...player2],
+    history: [],
+  };
+  console.log("playGame", game.id);
+
+  while (game.winner === undefined) {
+    combat(game, recursive);
+    if (game.player1.length === 0) {
+      game.winner = 2;
+    } else if (game.player2.length === 0) {
+      game.winner = 1;
+    }
+  }
+
+  return game;
+}
+
+function part1(input: Input): any {
+  const { player1, player2 } = playGame(input[0], input[1]);
 
   return scoreDeck(player1) + scoreDeck(player2);
 }
 function part2(input: Input): any {
-  return input;
+  gameId = 1;
+  const { player1, player2 } = playGame(input[0], input[1], true);
+
+  console.log(player1, player2);
+  const score = scoreDeck(player1) + scoreDeck(player2);
+
+  if (score === 33558) {
+    throw new Error(`wrong answer: ${score}`);
+  }
+
+  return score;
 }
 
 if (require.main === module) {
@@ -79,7 +152,7 @@ Player 2:
     label: "Part 2 Example",
     parse,
     input: part2Example || part1Example,
-    expect: 0,
+    expect: 291,
     func: part2,
   });
 
